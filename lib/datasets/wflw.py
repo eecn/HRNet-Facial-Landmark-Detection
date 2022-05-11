@@ -14,7 +14,7 @@ from PIL import Image
 import numpy as np
 
 from ..utils.transforms import fliplr_joints, crop, generate_target, transform_pixel
-
+import cv2
 
 class WFLW(data.Dataset):
     def __init__(self, cfg, is_train=True, transform=None):
@@ -54,12 +54,23 @@ class WFLW(data.Dataset):
         center_h = self.landmarks_frame.iloc[idx, 3]
         center = torch.Tensor([center_w, center_h])
 
+
+
         pts = self.landmarks_frame.iloc[idx, 4:].values
         pts = pts.astype('float').reshape(-1, 2)
 
         scale *= 1.25
         nparts = pts.shape[0]
         img = np.array(Image.open(image_path).convert('RGB'), dtype=np.float32)
+
+
+        for i in range(pts.shape[0]):
+            cv2.circle(img,(int(pts[i][0]),int(pts[i][1])),1,(255,0,0),1)
+        cv2.imwrite("face2.png", img)
+            # circle(img, center, radius, color, thickness=None, lineType=None, shift=None)
+
+
+
 
         r = 0
         if self.is_train:
@@ -83,12 +94,21 @@ class WFLW(data.Dataset):
                                                scale, self.output_size, rot=r)
                 target[i] = generate_target(target[i], tpts[i]-1, self.sigma,
                                             label_type=self.label_type)
+        # 将图像和对应的heatmap保存下来
+        cv2.imwrite("face.png",img)
+        for i in range(nparts):
+            cv2.imwrite(str(i)+".png",target[i])
+
+
         img = img.astype(np.float32)
         img = (img/255.0 - self.mean) / self.std
         img = img.transpose([2, 0, 1])
         target = torch.Tensor(target)
         tpts = torch.Tensor(tpts)
         center = torch.Tensor(center)
+
+
+
 
         meta = {'index': idx, 'center': center, 'scale': scale,
                 'pts': torch.Tensor(pts), 'tpts': tpts}
